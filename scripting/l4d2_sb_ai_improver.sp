@@ -1,5 +1,5 @@
 /*======================================================================================
-	This is a modified version of Bot Improver
+	This is a modified version of Bot Improver, further modified with SI Only Primary, Shotgun Bot Tank Kiting, Survivor Specific Allow Melee...
 	
 	Notable changes here:
 	
@@ -69,6 +69,8 @@ public Plugin myinfo =
 
 #define HUMAN_HEIGHT					71.0
 #define HUMAN_HALF_HEIGHT				35.5
+
+#define NAV_MESH_HYDRO 		0x00000020
 
 #define DEBUG_NONE						0
 #define DEBUG_NAV						(1 << 0)
@@ -322,6 +324,26 @@ static int g_iCvar_BotWeaponPreference_Francis;
 static int g_iCvar_BotWeaponPreference_Nick;
 static int g_iCvar_BotWeaponPreference_Louis;
 static int g_iCvar_BotWeaponPreference_Bill;
+
+//grotobuvic edit
+static ConVar g_hCvar_Melee_Nick;
+static ConVar g_hCvar_Melee_Rochelle;
+static ConVar g_hCvar_Melee_Coach;
+static ConVar g_hCvar_Melee_Ellis;
+static ConVar g_hCvar_Melee_Bill;
+static ConVar g_hCvar_Melee_Zoey;
+static ConVar g_hCvar_Melee_Francis;
+static ConVar g_hCvar_Melee_Louis;
+
+static bool g_bCvar_Melee_Nick;
+static bool g_bCvar_Melee_Rochelle;
+static bool g_bCvar_Melee_Coach;
+static bool g_bCvar_Melee_Ellis;
+static bool g_bCvar_Melee_Bill;
+static bool g_bCvar_Melee_Zoey;
+static bool g_bCvar_Melee_Francis;
+static bool g_bCvar_Melee_Louis;
+
 /*----------------------------------------------------------------------------------------------------*/
 static ConVar g_hCvar_SwapSameTypePrimaries_T1;
 static ConVar g_hCvar_SwapSameTypePrimaries_T2;
@@ -419,6 +441,67 @@ static float g_fCvar_HasEnoughAmmoRatio;
 
 static bool g_bCvar_Nightmare;
 
+// --- Custom SI-Only Logic ConVars ---
+static ConVar g_hCvar_PrimaryOnlyOnSI_Enabled;
+static ConVar g_hCvar_PrimaryOnlyOnSI_ReloadEnabled;
+static ConVar g_hCvar_PrimaryOnlyOnSI_ReloadThreshold;
+static ConVar g_hCvar_PrimaryOnlyOnSI_Cooldown;
+
+static ConVar g_hCvar_PrimaryOnlyOnSI_Range_Vis;
+static ConVar g_hCvar_PrimaryOnlyOnSI_Range_NoVis;
+static ConVar g_hCvar_PrimaryOnlyOnSI_Range_Vis_Sniper;
+static ConVar g_hCvar_PrimaryOnlyOnSI_Range_NoVis_Sniper;
+static ConVar g_hCvar_PrimaryOnlyOnSI_Range_Vis_Shotgun;
+static ConVar g_hCvar_PrimaryOnlyOnSI_Range_NoVis_Shotgun;
+static ConVar g_hCvar_PrimaryOnlyOnSI_Range_Vis_Rifle;
+static ConVar g_hCvar_PrimaryOnlyOnSI_Range_NoVis_Rifle;
+
+static ConVar g_hCvar_PrimaryOnlyOnSI_MeleeOverride_Sniper;
+static ConVar g_hCvar_PrimaryOnlyOnSI_MeleeOverride_Shotgun;
+static ConVar g_hCvar_PrimaryOnlyOnSI_MeleeOverride_Rifle;
+
+static ConVar g_hCvar_PrimaryOnlyOnSI_PistolOverride_Sniper;
+static ConVar g_hCvar_PrimaryOnlyOnSI_PistolOverride_Shotgun;
+static ConVar g_hCvar_PrimaryOnlyOnSI_PistolOverride_Rifle;
+
+static ConVar g_hCvar_TankKiting_Shotgun_Enabled;
+static ConVar g_hCvar_TankKiting_Shotgun_Retreat;
+static ConVar g_hCvar_TankKiting_Shotgun_Pursue;
+
+static ConVar g_hCvar_WitchBehavior_Chase;
+
+static bool g_bCvar_PrimaryOnlyOnSI_Enabled;
+static bool g_bCvar_PrimaryOnlyOnSI_ReloadEnabled;
+static float g_fCvar_PrimaryOnlyOnSI_ReloadThreshold;
+static float g_fCvar_PrimaryOnlyOnSI_Cooldown;
+
+static float g_fCvar_PrimaryOnlyOnSI_Range_Vis;
+static float g_fCvar_PrimaryOnlyOnSI_Range_NoVis;
+static float g_fCvar_PrimaryOnlyOnSI_Range_Vis_Sniper;
+static float g_fCvar_PrimaryOnlyOnSI_Range_NoVis_Sniper;
+static float g_fCvar_PrimaryOnlyOnSI_Range_Vis_Shotgun;
+static float g_fCvar_PrimaryOnlyOnSI_Range_NoVis_Shotgun;
+static float g_fCvar_PrimaryOnlyOnSI_Range_Vis_Rifle;
+static float g_fCvar_PrimaryOnlyOnSI_Range_NoVis_Rifle;
+
+static bool g_bCvar_PrimaryOnlyOnSI_MeleeOverride_Sniper;
+static bool g_bCvar_PrimaryOnlyOnSI_MeleeOverride_Shotgun;
+static bool g_bCvar_PrimaryOnlyOnSI_MeleeOverride_Rifle;
+
+static bool g_bCvar_PrimaryOnlyOnSI_PistolOverride_Sniper;
+static bool g_bCvar_PrimaryOnlyOnSI_PistolOverride_Shotgun;
+static bool g_bCvar_PrimaryOnlyOnSI_PistolOverride_Rifle;
+
+static bool g_bCvar_TankKiting_Shotgun_Enabled;
+static float g_fCvar_TankKiting_Shotgun_Retreat;
+static float g_fCvar_TankKiting_Shotgun_Pursue;
+
+static bool g_bCvar_WitchBehavior_Chase;
+
+// grotobuvic if they get stuck, not moving, but still firing weapons
+static float g_fBot_LastPos[MAXSURVIVORS+1][3];
+static float g_fBot_StuckTimer[MAXSURVIVORS+1];
+
 /*============ VARIABLES =========================================================*/
 static bool g_bClient_IsLookingAtPosition[MAXPLAYERS+1];
 static bool g_bClient_IsFiringWeapon[MAXPLAYERS+1];
@@ -491,6 +574,18 @@ static int g_iBot_NearbyInfectedCount[MAXSURVIVORS+1];
 static int g_iBot_NearestInfectedCount[MAXSURVIVORS+1]; 
 static int g_iBot_ThreatInfectedCount[MAXSURVIVORS+1]; 
 static int g_iBot_GrenadeInfectedCount[MAXSURVIVORS+1];
+
+// grotobuvic edit
+static float g_fBot_NextPrimaryCheckTime[MAXSURVIVORS+1];
+static bool g_bBot_PrimaryPermitted[MAXSURVIVORS+1];
+static bool g_bBot_PrimaryAwaitingReload[MAXSURVIVORS+1];
+static float g_fBot_LastSISeenTime[MAXSURVIVORS+1];
+static float g_fBot_NextWorldScan[MAXSURVIVORS+1];
+static bool g_bBot_CachedThreat[MAXSURVIVORS+1];
+static bool g_bBot_ShotgunKiteReloading[MAXSURVIVORS+1];
+static float g_fBot_NextTankPathTime[MAXSURVIVORS+1];
+static float g_fBot_NextWitchPathTime[MAXSURVIVORS+1];
+static float g_fBot_NextEvadeTime[MAXSURVIVORS+1];
 
 // -------------------------
 
@@ -883,7 +978,7 @@ void CreateAndHookConVars()
 	g_hCvar_MaxWeaponTier3_GLauncher 				= CreateConVar("ib_t3_limit_gl", "0", "The total number of grenade launchers allowed on the team. <0: Bots never use grenade launcher>", FCVAR_NOTIFY, true, 0.0);
 	
 	g_hCvar_Vision_FieldOfView 						= CreateConVar("ib_vision_fov", "70.0", "The field of view of survivor bots.", FCVAR_NOTIFY, true, 0.0, true, 180.0);
-	g_hCvar_Vision_NoticeTimeScale 					= CreateConVar("ib_vision_noticetimescale", "1.0", "The time required for bots to notice enemy target is multiplied to this value.", FCVAR_NOTIFY, true, 0.0, true, 4.0);
+	g_hCvar_Vision_NoticeTimeScale 					= CreateConVar("ib_vision_noticetimescale", "1.0", "The time required for bots to notice enemy target is multiplied to this value.", FCVAR_NOTIFY, true, 0.0, true, 99.0);
 	
 	g_hCvar_WitchBehavior_AllowCrowning				= CreateConVar("ib_witchbehavior_allowcrowning", "0", "(WIP) Allows survivor bots to crown witch on their path if they're holding any shotgun type weapon. <0: Disabled; 1: Only if survivor team doesn't have any human players; 2:Enabled>", FCVAR_NOTIFY, true, 0.0, true, 2.0);
 	g_hCvar_WitchBehavior_WalkWhenNearby			= CreateConVar("ib_witchbehavior_walkwhennearby", "0", "Survivor bots will start walking near witch if they're this range near her and she's not disturbed. <0: Disabled>", FCVAR_NOTIFY, true, 0.0);
@@ -1031,6 +1126,77 @@ void CreateAndHookConVars()
 	g_hCvar_Debug.AddChangeHook(OnConVarChanged);
 
 	g_hCvar_Nightmare.AddChangeHook(OnConVarChanged);
+	
+	//grotobuvic edit
+	g_hCvar_PrimaryOnlyOnSI_Enabled             = CreateConVar("ib_primary_only_on_si_enabled", "1", "Enable SI-only primary logic.", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	g_hCvar_PrimaryOnlyOnSI_ReloadEnabled       = CreateConVar("ib_primary_only_on_si_reload_enabled", "1", "Enable reload before switch.", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	g_hCvar_PrimaryOnlyOnSI_ReloadThreshold     = CreateConVar("ib_primary_only_on_si_reload_threshold", "0.7", "Ammo percentage to trigger reload.", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	g_hCvar_PrimaryOnlyOnSI_Cooldown            = CreateConVar("ib_primary_only_on_si_cooldown", "3.0", "Seconds to wait before stowing primary.", FCVAR_NOTIFY, true, 0.0);
+	g_hCvar_PrimaryOnlyOnSI_Range_Vis           = CreateConVar("ib_primary_only_on_si_range_vis", "2000", "Default Vis Range", FCVAR_NOTIFY, true, 0.0);
+	g_hCvar_PrimaryOnlyOnSI_Range_NoVis         = CreateConVar("ib_primary_only_on_si_range_novis", "1000", "Default NoVis Range", FCVAR_NOTIFY, true, 0.0);
+
+	g_hCvar_PrimaryOnlyOnSI_Range_Vis_Sniper    = CreateConVar("ib_primary_only_on_si_range_vis_sniper", "4000", "Visible distance for snipers.", FCVAR_NOTIFY, true, 0.0);
+	g_hCvar_PrimaryOnlyOnSI_Range_NoVis_Sniper  = CreateConVar("ib_primary_only_on_si_range_novis_sniper", "800", "Non-visible distance for snipers.", FCVAR_NOTIFY, true, 0.0);
+	g_hCvar_PrimaryOnlyOnSI_Range_Vis_Shotgun   = CreateConVar("ib_primary_only_on_si_range_vis_shotgun", "1200", "Visible distance for shotguns.", FCVAR_NOTIFY, true, 0.0);
+	g_hCvar_PrimaryOnlyOnSI_Range_NoVis_Shotgun = CreateConVar("ib_primary_only_on_si_range_novis_shotgun", "400", "Non-visible distance for shotguns.", FCVAR_NOTIFY, true, 0.0);
+	g_hCvar_PrimaryOnlyOnSI_Range_Vis_Rifle     = CreateConVar("ib_primary_only_on_si_range_vis_rifle", "2000", "Visible distance for rifles/SMGs.", FCVAR_NOTIFY, true, 0.0);
+	g_hCvar_PrimaryOnlyOnSI_Range_NoVis_Rifle   = CreateConVar("ib_primary_only_on_si_range_novis_rifle", "500", "Non-visible distance for rifles/SMGs.", FCVAR_NOTIFY, true, 0.0);
+
+	g_hCvar_PrimaryOnlyOnSI_MeleeOverride_Sniper  = CreateConVar("ib_primary_only_on_si_melee_override_sniper", "0", "Allow snipers to switch to melee if swarmed?", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	g_hCvar_PrimaryOnlyOnSI_MeleeOverride_Shotgun = CreateConVar("ib_primary_only_on_si_melee_override_shotgun", "1", "Allow shotguns to switch to melee if swarmed?", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	g_hCvar_PrimaryOnlyOnSI_MeleeOverride_Rifle   = CreateConVar("ib_primary_only_on_si_melee_override_rifle", "1", "Allow rifles to switch to melee if swarmed?", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+
+	g_hCvar_PrimaryOnlyOnSI_PistolOverride_Sniper  = CreateConVar("ib_primary_only_on_si_pistol_override_sniper", "0", "Allow snipers to switch to Pistol/Magnum if swarmed?", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	g_hCvar_PrimaryOnlyOnSI_PistolOverride_Shotgun = CreateConVar("ib_primary_only_on_si_pistol_override_shotgun", "0", "Allow shotguns to switch to Pistol/Magnum if swarmed?", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	g_hCvar_PrimaryOnlyOnSI_PistolOverride_Rifle   = CreateConVar("ib_primary_only_on_si_pistol_override_rifle", "1", "Allow rifles to switch to Pistol/Magnum if swarmed?", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+
+	g_hCvar_TankKiting_Shotgun_Enabled = CreateConVar("ib_tank_kiting_shotgun_enabled", "1", "Enable shotgun kiting around tanks.", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	g_hCvar_TankKiting_Shotgun_Retreat = CreateConVar("ib_tank_kiting_shotgun_retreat", "200", "Range to retreat from Tank when holding a shotgun.", FCVAR_NOTIFY, true, 0.0);
+	g_hCvar_TankKiting_Shotgun_Pursue  = CreateConVar("ib_tank_kiting_shotgun_pursue", "300", "Range to pursue the Tank when holding a shotgun.", FCVAR_NOTIFY, true, 0.0);
+
+	g_hCvar_WitchBehavior_Chase = CreateConVar("ib_witchbehavior_chase", "0", "Enable custom bot movement when a Witch is startled. 0=Disable, 1=Enable.", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+
+	g_hCvar_PrimaryOnlyOnSI_Enabled.AddChangeHook(OnConVarChanged);
+	g_hCvar_PrimaryOnlyOnSI_ReloadEnabled.AddChangeHook(OnConVarChanged);
+	g_hCvar_PrimaryOnlyOnSI_ReloadThreshold.AddChangeHook(OnConVarChanged);
+	g_hCvar_PrimaryOnlyOnSI_Cooldown.AddChangeHook(OnConVarChanged);
+	g_hCvar_PrimaryOnlyOnSI_Range_Vis.AddChangeHook(OnConVarChanged);
+	g_hCvar_PrimaryOnlyOnSI_Range_NoVis.AddChangeHook(OnConVarChanged);
+	g_hCvar_PrimaryOnlyOnSI_Range_Vis_Sniper.AddChangeHook(OnConVarChanged);
+	g_hCvar_PrimaryOnlyOnSI_Range_NoVis_Sniper.AddChangeHook(OnConVarChanged);
+	g_hCvar_PrimaryOnlyOnSI_Range_Vis_Shotgun.AddChangeHook(OnConVarChanged);
+	g_hCvar_PrimaryOnlyOnSI_Range_NoVis_Shotgun.AddChangeHook(OnConVarChanged);
+	g_hCvar_PrimaryOnlyOnSI_Range_Vis_Rifle.AddChangeHook(OnConVarChanged);
+	g_hCvar_PrimaryOnlyOnSI_Range_NoVis_Rifle.AddChangeHook(OnConVarChanged);
+	g_hCvar_PrimaryOnlyOnSI_MeleeOverride_Sniper.AddChangeHook(OnConVarChanged);
+	g_hCvar_PrimaryOnlyOnSI_MeleeOverride_Shotgun.AddChangeHook(OnConVarChanged);
+	g_hCvar_PrimaryOnlyOnSI_MeleeOverride_Rifle.AddChangeHook(OnConVarChanged);
+	g_hCvar_PrimaryOnlyOnSI_PistolOverride_Sniper.AddChangeHook(OnConVarChanged);
+	g_hCvar_PrimaryOnlyOnSI_PistolOverride_Shotgun.AddChangeHook(OnConVarChanged);
+	g_hCvar_PrimaryOnlyOnSI_PistolOverride_Rifle.AddChangeHook(OnConVarChanged);
+	g_hCvar_TankKiting_Shotgun_Enabled.AddChangeHook(OnConVarChanged);
+	g_hCvar_TankKiting_Shotgun_Retreat.AddChangeHook(OnConVarChanged);
+	g_hCvar_TankKiting_Shotgun_Pursue.AddChangeHook(OnConVarChanged);
+	g_hCvar_WitchBehavior_Chase.AddChangeHook(OnConVarChanged);
+	
+	//grotobuvic edit
+	g_hCvar_Melee_Nick = CreateConVar("ib_melee_nick", "1", "Allow Nick to use melee weapons.", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	g_hCvar_Melee_Rochelle = CreateConVar("ib_melee_rochelle", "1", "Allow Rochelle to use melee weapons.", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	g_hCvar_Melee_Coach = CreateConVar("ib_melee_coach", "1", "Allow Coach to use melee weapons.", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	g_hCvar_Melee_Ellis = CreateConVar("ib_melee_ellis", "1", "Allow Ellis to use melee weapons.", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	g_hCvar_Melee_Bill = CreateConVar("ib_melee_bill", "1", "Allow Bill to use melee weapons.", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	g_hCvar_Melee_Zoey = CreateConVar("ib_melee_zoey", "1", "Allow Zoey to use melee weapons.", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	g_hCvar_Melee_Francis = CreateConVar("ib_melee_francis", "1", "Allow Francis to use melee weapons.", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	g_hCvar_Melee_Louis = CreateConVar("ib_melee_louis", "1", "Allow Louis to use melee weapons.", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+
+	g_hCvar_Melee_Nick.AddChangeHook(OnConVarChanged);
+	g_hCvar_Melee_Rochelle.AddChangeHook(OnConVarChanged);
+	g_hCvar_Melee_Coach.AddChangeHook(OnConVarChanged);
+	g_hCvar_Melee_Ellis.AddChangeHook(OnConVarChanged);
+	g_hCvar_Melee_Bill.AddChangeHook(OnConVarChanged);
+	g_hCvar_Melee_Zoey.AddChangeHook(OnConVarChanged);
+	g_hCvar_Melee_Francis.AddChangeHook(OnConVarChanged);
+	g_hCvar_Melee_Louis.AddChangeHook(OnConVarChanged);
 }
 
 public void OnAllPluginsLoaded()
@@ -1202,6 +1368,45 @@ void UpdateConVarValues()
 	//}
 
 	g_bCvar_Nightmare 									= g_hCvar_Nightmare.BoolValue;
+	
+	// grotobuvic edit
+	g_bCvar_PrimaryOnlyOnSI_Enabled             = g_hCvar_PrimaryOnlyOnSI_Enabled.BoolValue;
+	g_bCvar_PrimaryOnlyOnSI_ReloadEnabled       = g_hCvar_PrimaryOnlyOnSI_ReloadEnabled.BoolValue;
+	g_fCvar_PrimaryOnlyOnSI_ReloadThreshold     = g_hCvar_PrimaryOnlyOnSI_ReloadThreshold.FloatValue;
+	g_fCvar_PrimaryOnlyOnSI_Cooldown            = g_hCvar_PrimaryOnlyOnSI_Cooldown.FloatValue;
+
+	g_fCvar_PrimaryOnlyOnSI_Range_Vis           = g_hCvar_PrimaryOnlyOnSI_Range_Vis.FloatValue * g_hCvar_PrimaryOnlyOnSI_Range_Vis.FloatValue;
+	g_fCvar_PrimaryOnlyOnSI_Range_NoVis         = g_hCvar_PrimaryOnlyOnSI_Range_NoVis.FloatValue * g_hCvar_PrimaryOnlyOnSI_Range_NoVis.FloatValue;
+	g_fCvar_PrimaryOnlyOnSI_Range_Vis_Sniper    = g_hCvar_PrimaryOnlyOnSI_Range_Vis_Sniper.FloatValue * g_hCvar_PrimaryOnlyOnSI_Range_Vis_Sniper.FloatValue;
+	g_fCvar_PrimaryOnlyOnSI_Range_NoVis_Sniper  = g_hCvar_PrimaryOnlyOnSI_Range_NoVis_Sniper.FloatValue * g_hCvar_PrimaryOnlyOnSI_Range_NoVis_Sniper.FloatValue;
+	g_fCvar_PrimaryOnlyOnSI_Range_Vis_Shotgun   = g_hCvar_PrimaryOnlyOnSI_Range_Vis_Shotgun.FloatValue * g_hCvar_PrimaryOnlyOnSI_Range_Vis_Shotgun.FloatValue;
+	g_fCvar_PrimaryOnlyOnSI_Range_NoVis_Shotgun = g_hCvar_PrimaryOnlyOnSI_Range_NoVis_Shotgun.FloatValue * g_hCvar_PrimaryOnlyOnSI_Range_NoVis_Shotgun.FloatValue;
+	g_fCvar_PrimaryOnlyOnSI_Range_Vis_Rifle     = g_hCvar_PrimaryOnlyOnSI_Range_Vis_Rifle.FloatValue * g_hCvar_PrimaryOnlyOnSI_Range_Vis_Rifle.FloatValue;
+	g_fCvar_PrimaryOnlyOnSI_Range_NoVis_Rifle   = g_hCvar_PrimaryOnlyOnSI_Range_NoVis_Rifle.FloatValue * g_hCvar_PrimaryOnlyOnSI_Range_NoVis_Rifle.FloatValue;
+
+	g_bCvar_PrimaryOnlyOnSI_MeleeOverride_Sniper  = g_hCvar_PrimaryOnlyOnSI_MeleeOverride_Sniper.BoolValue;
+	g_bCvar_PrimaryOnlyOnSI_MeleeOverride_Shotgun = g_hCvar_PrimaryOnlyOnSI_MeleeOverride_Shotgun.BoolValue;
+	g_bCvar_PrimaryOnlyOnSI_MeleeOverride_Rifle   = g_hCvar_PrimaryOnlyOnSI_MeleeOverride_Rifle.BoolValue;
+	
+	g_bCvar_PrimaryOnlyOnSI_PistolOverride_Sniper  = g_hCvar_PrimaryOnlyOnSI_PistolOverride_Sniper.BoolValue;
+	g_bCvar_PrimaryOnlyOnSI_PistolOverride_Shotgun = g_hCvar_PrimaryOnlyOnSI_PistolOverride_Shotgun.BoolValue;
+	g_bCvar_PrimaryOnlyOnSI_PistolOverride_Rifle   = g_hCvar_PrimaryOnlyOnSI_PistolOverride_Rifle.BoolValue;
+	
+	g_bCvar_TankKiting_Shotgun_Enabled = g_hCvar_TankKiting_Shotgun_Enabled.BoolValue;
+	g_fCvar_TankKiting_Shotgun_Retreat = g_hCvar_TankKiting_Shotgun_Retreat.FloatValue * g_hCvar_TankKiting_Shotgun_Retreat.FloatValue;
+	g_fCvar_TankKiting_Shotgun_Pursue  = g_hCvar_TankKiting_Shotgun_Pursue.FloatValue * g_hCvar_TankKiting_Shotgun_Pursue.FloatValue;
+
+	g_bCvar_WitchBehavior_Chase = g_hCvar_WitchBehavior_Chase.BoolValue;
+	
+	//grotobuvic edit
+	g_bCvar_Melee_Nick = g_hCvar_Melee_Nick.BoolValue;
+	g_bCvar_Melee_Rochelle = g_hCvar_Melee_Rochelle.BoolValue;
+	g_bCvar_Melee_Coach = g_hCvar_Melee_Coach.BoolValue;
+	g_bCvar_Melee_Ellis = g_hCvar_Melee_Ellis.BoolValue;
+	g_bCvar_Melee_Bill = g_hCvar_Melee_Bill.BoolValue;
+	g_bCvar_Melee_Zoey = g_hCvar_Melee_Zoey.BoolValue;
+	g_bCvar_Melee_Francis = g_hCvar_Melee_Francis.BoolValue;
+	g_bCvar_Melee_Louis = g_hCvar_Melee_Louis.BoolValue;
 }
 
 static Handle g_hCalcAbsolutePosition;
@@ -1554,6 +1759,21 @@ void ResetClientPluginVariables(int iClient)
 
 	L4D2_CommandABot(iClient, 0, BOT_CMD_RESET);
 	g_bBotProcessing_IsProcessed[iClient] = false;
+	
+	// grotobuvic edit
+	g_fBot_NextPrimaryCheckTime[iClient] = 0.0;	
+	g_bBot_PrimaryPermitted[iClient] = false;
+	g_bBot_PrimaryAwaitingReload[iClient] = false;
+	g_fBot_LastSISeenTime[iClient] = 0.0;
+	g_fBot_NextWorldScan[iClient] = 0.0;
+	g_bBot_CachedThreat[iClient] = false;
+	g_bBot_ShotgunKiteReloading[iClient] = false;
+	g_fBot_NextTankPathTime[iClient] = 0.0;	
+	g_fBot_NextWitchPathTime[iClient] = 0.0;
+	g_fBot_NextEvadeTime[iClient] = 0.0;
+	
+	SetVectorToZero(g_fBot_LastPos[iClient]);
+	g_fBot_StuckTimer[iClient] = GetGameTime() + 4.0;
 }
 
 void Event_OnWeaponFire(Event hEvent, const char[] sName, bool bBroadcast)
@@ -1995,6 +2215,69 @@ stock void VScript_DebugDrawText(const float fOrigin[3], const char[] sText, boo
 	L4D2_ExecVScriptCode(sScriptCode);
 }
 
+// grotobuvic edit
+bool ShouldBotUsePrimary(int iClient, int iWitchTarget, int iWitchHarasser)
+{
+	// 1. MASTER OVERRIDE: SWOP
+	if (GetBotWeaponPreference(iClient) == L4D_WEAPON_PREFERENCE_SECONDARY) return false; 
+
+	// 2. THE HORDE OVERRIDE
+	int iInvFlags = g_iClientInvFlags[iClient];
+	bool bHasMelee = (iInvFlags & FLAG_MELEE) != 0;
+	bool bHasSniper = (iInvFlags & FLAG_SNIPER) != 0;
+	bool bHasShotgun = (iInvFlags & FLAG_SHOTGUN) != 0;
+	bool bHasChainsaw = (iInvFlags & FLAG_CHAINSAW) != 0;
+
+	bool bOverrideAllowed = false;
+	if (bHasMelee) {
+		if (bHasSniper) bOverrideAllowed = g_bCvar_PrimaryOnlyOnSI_MeleeOverride_Sniper;
+		else if (bHasShotgun) bOverrideAllowed = g_bCvar_PrimaryOnlyOnSI_MeleeOverride_Shotgun;
+		else bOverrideAllowed = g_bCvar_PrimaryOnlyOnSI_MeleeOverride_Rifle;
+	} else {
+		if (bHasSniper) bOverrideAllowed = g_bCvar_PrimaryOnlyOnSI_PistolOverride_Sniper;
+		else if (bHasShotgun) bOverrideAllowed = g_bCvar_PrimaryOnlyOnSI_PistolOverride_Shotgun;
+		else bOverrideAllowed = g_bCvar_PrimaryOnlyOnSI_PistolOverride_Rifle;
+	}
+
+	int iSwarmLimit = (bHasChainsaw ? g_iCvar_ImprovedMelee_SwitchCount2 : g_iCvar_ImprovedMelee_SwitchCount);
+	bool bIsSwarmed = (GetInfectedCount(iClient, SquareRoot(g_fCvar_ImprovedMelee_SwitchRange), iSwarmLimit, false) >= iSwarmLimit);
+
+	if (bOverrideAllowed && bIsSwarmed) return false; 
+
+	// 3. Absolute Overrides: Witches & Pinned Friends
+	if (L4D_IsValidEnt(iWitchTarget) && IsValidClient(iWitchHarasser)) return true;
+	for (int i = 1; i <= MaxClients; i++)
+	{
+		if (IsClientInGame(i) && GetClientTeam(i) == 2 && L4D_IsPlayerPinned(i)) 
+		{
+			int iAttacker = L4D_GetPinnedInfected(i);
+			if (IsValidClient(iAttacker))
+			{
+				float fAttackerDist = GetClientDistance(iClient, iAttacker, true);
+				if (fAttackerDist <= g_fCvar_ImprovedMelee_AimRange_Sqr && bOverrideAllowed) return false;
+				return true; 
+			}
+		}
+	}
+
+	// 4. Weapon Scanning Distances
+	float fVisLimit, fNoVisLimit;
+	if (bHasSniper) { fVisLimit = g_fCvar_PrimaryOnlyOnSI_Range_Vis_Sniper; fNoVisLimit = g_fCvar_PrimaryOnlyOnSI_Range_NoVis_Sniper; }
+	else if (bHasShotgun) { fVisLimit = g_fCvar_PrimaryOnlyOnSI_Range_Vis_Shotgun; fNoVisLimit = g_fCvar_PrimaryOnlyOnSI_Range_NoVis_Shotgun; }
+	else if (iInvFlags & FLAG_ASSAULT || iInvFlags & FLAG_SMG) { fVisLimit = g_fCvar_PrimaryOnlyOnSI_Range_Vis_Rifle; fNoVisLimit = g_fCvar_PrimaryOnlyOnSI_Range_NoVis_Rifle; }
+	else { fVisLimit = g_fCvar_PrimaryOnlyOnSI_Range_Vis; fNoVisLimit = g_fCvar_PrimaryOnlyOnSI_Range_NoVis; }
+
+	// 5. SI Scanner
+	for (int i = 1; i <= MaxClients; i++)
+	{
+		if (i == iClient || !IsSpecialInfected(i)) continue;
+		float fDistanceSqr = GetClientDistance(iClient, i, true);
+		if (fDistanceSqr <= fVisLimit && HasVisualContactWithEntity(iClient, i, false)) return true;
+		if (fDistanceSqr <= fNoVisLimit) return true;
+	}
+	return false;
+}
+
 void OnGrenadeThrown(int iClient, bool bIsMolotov)
 {
 	if (!(1 <= iClient <= MaxClients))
@@ -2068,6 +2351,42 @@ int SurvivorBotThink(int iClient, int &iButtons, int iWpnSlots[6], int iInvFlags
 		g_iBot_GrenadeInfectedCount[iClient] = 0;
 
 		g_bBotProcessing_IsProcessed[iClient] = true;
+		
+		// --- START: MASTER MOVEMENT FAILSAFE (STUCK DETECTOR) ---
+		// Only run this check if the bot is alive, not pinned, not incapped, and not on a ladder.
+		if (LBI_IsSurvivorBotAvailable(iClient) && !L4D_IsPlayerIncapacitated(iClient) && !L4D_IsPlayerPinned(iClient) && GetEntityMoveType(iClient) != MOVETYPE_LADDER)
+		{
+			// 1. Calculate distance from where the bot was last time we checked.
+			float fDistTraveled = GetVectorDistance(g_fClientAbsOrigin[iClient], g_fBot_LastPos[iClient], true);
+			
+			// 2. If the bot has moved more than 20 units (roughly 2 steps), reset the timer.
+			if (fDistTraveled > 400.0) // 20 units squared
+			{
+				g_fBot_LastPos[iClient] = g_fClientAbsOrigin[iClient];
+				g_fBot_StuckTimer[iClient] = fCurTime + 4.0; 
+			}
+			// 3. If the bot has been in the same spot for too long...
+			else if (fCurTime > g_fBot_StuckTimer[iClient])
+			{
+				// ...But ignore if they are currently performing a stationary action (healing or using a defib)
+				L4D2UseAction iAction = L4D2_GetPlayerUseAction(iClient);
+				if (iAction != L4D2UseAction_Healing && iAction != L4D2UseAction_Defibing)
+				{
+					// RESET TRIGGERED: Clear all custom move commands and native engine commands.
+					// This forces the bot to "wake up" and re-evaluate their follow logic.
+					ClearMoveToPosition(iClient);
+					L4D2_CommandABot(iClient, 0, BOT_CMD_RESET);
+					
+					// Reset timer so they have another 4 seconds to start moving.
+					g_fBot_StuckTimer[iClient] = fCurTime + 4.0;
+					
+					if (g_iCvar_Debug & DEBUG_MOVE) PrintToServer("[IB] Failsafe triggered for %N (Brain Reset)", iClient);
+				}
+			}
+		}
+		// --- END: MASTER MOVEMENT FAILSAFE ---
+		
+		
 		g_iBotProcessing_ProcessedCount++;
 		g_fBotProcessing_NextProcessTime = (fCurTime + g_fCvar_NextProcessTime);
 
@@ -2368,6 +2687,105 @@ int SurvivorBotThink(int iClient, int &iButtons, int iWpnSlots[6], int iInvFlags
 	}
 
 	int iCurWeapon = L4D_GetPlayerCurrentWeapon(iClient);
+	
+	//grotobuvic edit
+	// --- START: NEW FEATURE LOGIC ---
+	if (g_bCvar_PrimaryOnlyOnSI_Enabled)
+	{
+		if (GetBotWeaponPreference(iClient) == L4D_WEAPON_PREFERENCE_SECONDARY)
+		{
+			g_bBot_PrimaryPermitted[iClient] = false;
+			g_bBot_PrimaryAwaitingReload[iClient] = false;
+			g_fBot_LastSISeenTime[iClient] = 0.0;
+		}
+		else if (IsValidClient(g_iBot_PinnedFriend[iClient]))
+		{
+			g_bBot_PrimaryPermitted[iClient] = true; 
+			g_bBot_PrimaryAwaitingReload[iClient] = false;
+			// g_bBot_PreventFireTime is handled natively by the new script now!
+		}
+		else 
+		{
+			if (fCurTime >= g_fBot_NextWorldScan[iClient])
+			{
+				g_bBot_CachedThreat[iClient] = ShouldBotUsePrimary(iClient, g_iBot_WitchTarget[iClient], iWitchHarasser);
+				g_fBot_NextWorldScan[iClient] = fCurTime + 0.5;
+			}
+
+			if (g_bBot_CachedThreat[iClient])
+			{
+				g_fBot_LastSISeenTime[iClient] = fCurTime;
+				g_bBot_PrimaryPermitted[iClient] = true;
+			}
+			else 
+			{
+				g_bBot_PrimaryPermitted[iClient] = ((fCurTime - g_fBot_LastSISeenTime[iClient]) < g_fCvar_PrimaryOnlyOnSI_Cooldown);
+			}
+		}
+		
+		int iPrimary = iWpnSlots[0];
+		int iSecondary = iWpnSlots[1];
+
+		if (!IsValidClient(g_iBot_PinnedFriend[iClient]))
+		{
+			if (g_bBot_PrimaryPermitted[iClient])
+			{
+				if (iPrimary != 0 && iCurWeapon == iSecondary)
+				{
+					g_bBot_PrimaryAwaitingReload[iClient] = false; 
+					g_bBot_ForceSwitchWeapon[iClient] = true;
+					SwitchWeaponSlot(iClient, 0);
+					iCurWeapon = iPrimary;
+				}
+			}
+			else 
+			{
+				if (iPrimary != 0 && iCurWeapon == iPrimary)
+				{
+					if (g_bCvar_PrimaryOnlyOnSI_ReloadEnabled && !g_bBot_PrimaryAwaitingReload[iClient] && GetBotWeaponPreference(iClient) != L4D_WEAPON_PREFERENCE_SECONDARY)
+					{
+						int iMaxClip = GetWeaponClipSize(iPrimary);
+						if (iMaxClip > 0 && g_iWeapon_AmmoLeft[iPrimary] > 0)
+						{
+							if ((float(g_iWeapon_Clip1[iPrimary]) / float(iMaxClip)) <= g_fCvar_PrimaryOnlyOnSI_ReloadThreshold)
+								g_bBot_PrimaryAwaitingReload[iClient] = true;
+						}
+					}
+
+					if (g_bBot_PrimaryAwaitingReload[iClient])
+					{
+						if (g_iWeapon_Clip1[iPrimary] >= GetWeaponClipSize(iPrimary) || g_iWeapon_AmmoLeft[iPrimary] <= 0) 
+							g_bBot_PrimaryAwaitingReload[iClient] = false;
+						else 
+						{
+							iButtons |= IN_RELOAD;
+							if (!IsValidClient(g_iBot_PinnedFriend[iClient]))
+							{
+								iButtons &= ~IN_ATTACK;
+								iButtons &= ~IN_ZOOM;
+								g_fBot_PreventFireTime[iClient] = fCurTime + 0.1;
+							}
+						}
+					}
+
+					if (!g_bBot_PrimaryAwaitingReload[iClient] && iSecondary != 0)
+					{
+						if (!IsValidClient(g_iBot_PinnedFriend[iClient]))
+						{
+							iButtons &= ~IN_ATTACK;
+							iButtons &= ~IN_ZOOM;
+							g_fBot_PreventFireTime[iClient] = fCurTime + 0.1;
+						}
+						g_bBot_ForceSwitchWeapon[iClient] = true;
+						SwitchWeaponSlot(iClient, 1);
+						iCurWeapon = iSecondary;
+					}
+				}
+			}
+		}
+	}
+	// --- END: NEW FEATURE LOGIC ---
+		
 	if (iCurWeapon)
 	{
 		if (g_bBot_ForceWeaponReload[iClient])
@@ -2415,7 +2833,8 @@ int SurvivorBotThink(int iClient, int &iButtons, int iWpnSlots[6], int iInvFlags
 				SwitchWeaponSlot(iClient, 1);
 			}
 			// if we're not occupied and our primary is loaded, switch to pistol (to reload)
-			else if (fCurTime > GetWeaponNextFireTime(iCurWeapon) && !IsWeaponReloading(iCurWeapon, false)
+			// FIX: Only allow Downtime Reloads if our SI-Logic isn't currently forcing the primary weapon out!
+			else if ((!g_bCvar_PrimaryOnlyOnSI_Enabled || !g_bBot_PrimaryPermitted[iClient]) && fCurTime > GetWeaponNextFireTime(iCurWeapon) && !IsWeaponReloading(iCurWeapon, false)
 				&& LBI_IsSurvivorBotAvailable(iClient) && !LBI_IsSurvivorInCombat(iClient) && ( iInvFlags & FLAG_M60 || GetWeaponClip1(iCurWeapon) == GetWeaponClipSize(iCurWeapon) )
 				&& iInvFlags & (FLAG_PISTOL | FLAG_PISTOL_EXTRA) && GetWeaponClip1(iWpnSlots[1]) != GetWeaponClipSize(iWpnSlots[1]))
 			{
@@ -2434,77 +2853,103 @@ int SurvivorBotThink(int iClient, int &iButtons, int iWpnSlots[6], int iInvFlags
 	}
 	else if (fCurTime > g_fBot_PinnedReactTime[iClient])
 	{
-		static float fAttackerAimPos[3];
-		GetTargetAimPart(iClient, iPinnedAttacker, fAttackerAimPos);			
-
-		float fFriendDist = GetVectorDistance(g_fClientEyePos[iClient], g_fClientCenteroid[iPinnedFriend], true);
-		bool bCanShoot = (g_iCvar_HelpPinnedFriend_Enabled & (1 << 0) != 0);
-		if (bCanShoot)
+		if (g_iCvar_HelpPinnedFriend_Enabled != 0)
 		{
-			bCanShoot = (iCurWeapon && fFriendDist <= g_fCvar_HelpPinnedFriend_ShootRange_Sqr
-				&& (iCurWeapon != iWpnSlots[1] || !SurvivorHasMeleeWeapon(iClient) || GetClientDistance(iClient, iPinnedAttacker, true) <= g_fCvar_ImprovedMelee_ApproachRange)
-				&& SurvivorBot_AbleToShootWeapon(iClient) && CheckIfCanRescueImmobilizedFriend(iClient)
-			);
-		}
+			static float fAttackerAimPos[3]; GetTargetAimPart(iClient, iPinnedAttacker, fAttackerAimPos);			
+			bool bAttackerVisible = HasVisualContactWithEntity(iClient, iPinnedAttacker, false, fAttackerAimPos);
+			float fFriendDist = GetVectorDistance(g_fClientEyePos[iClient], g_fClientCenteroid[iPinnedFriend], true);
+			float fAttackerDist = GetClientDistance(iClient, iPinnedAttacker, true);
+			
+			L4D2ZombieClassType iZombieClass = L4D2_GetPlayerZombieClass(iPinnedAttacker);
+			bool bIsCharger = (iZombieClass == L4D2ZombieClass_Charger);
+			bool bSwopActive = (GetBotWeaponPreference(iClient) == L4D_WEAPON_PREFERENCE_SECONDARY);
 
-		int iCanShove;
-		if (g_iCvar_HelpPinnedFriend_Enabled & (1 << 1) != 0)
-			iCanShove = (fFriendDist <= g_fCvar_HelpPinnedFriend_ShoveRange_Sqr ? 1 : (GetVectorDistance(g_fClientEyePos[iClient], g_fClientCenteroid[iPinnedAttacker], true) <= g_fCvar_HelpPinnedFriend_ShoveRange_Sqr ? 2 : 0));
+			int iMeleeType = SurvivorHasMeleeWeapon(iClient);
+			int iMeleeLimit = ((iMeleeType != 2) ? g_iCvar_ImprovedMelee_SwitchCount : g_iCvar_ImprovedMelee_SwitchCount2);
+			
+			// Dynamic Swarm Check
+			int iSwarmCount = 0;
+			float fClientPos[3]; GetEntityCenteroid(iClient, fClientPos);
+			int i = INVALID_ENT_REFERENCE;
+			while ((i = FindEntityByClassname(i, "infected")) != INVALID_ENT_REFERENCE)
+			{
+				if (!IsCommonAlive(i) || !IsCommonAttacking(i)) continue;
+				GetEntityCenteroid(i, fInfectedPos);
+				if (GetVectorDistance(fClientPos, fInfectedPos, true) <= g_fCvar_ImprovedMelee_SwitchRange)
+				{
+					iSwarmCount++;
+					if (iSwarmCount >= iMeleeLimit) break; 
+				}
+			}
+			bool bIsSwarmed = (iSwarmCount >= iMeleeLimit);
+			
+			bool bOverrideAllowed = false;
+			if (iMeleeType != 0) {
+				if (iInvFlags & FLAG_SNIPER) bOverrideAllowed = g_bCvar_PrimaryOnlyOnSI_MeleeOverride_Sniper;
+				else if (iInvFlags & FLAG_SHOTGUN) bOverrideAllowed = g_bCvar_PrimaryOnlyOnSI_MeleeOverride_Shotgun;
+				else bOverrideAllowed = g_bCvar_PrimaryOnlyOnSI_MeleeOverride_Rifle;
+			} else {
+				if (iInvFlags & FLAG_SNIPER) bOverrideAllowed = g_bCvar_PrimaryOnlyOnSI_PistolOverride_Sniper;
+				else if (iInvFlags & FLAG_SHOTGUN) bOverrideAllowed = g_bCvar_PrimaryOnlyOnSI_PistolOverride_Shotgun;
+				else bOverrideAllowed = g_bCvar_PrimaryOnlyOnSI_PistolOverride_Rifle;
+			}
+			
+			bool bInMeleeRange = (iMeleeType != 0 && fAttackerDist <= g_fCvar_ImprovedMelee_AimRange_Sqr);
+			bool bShouldMeleeSave = (bSwopActive || (bIsSwarmed && bOverrideAllowed) || bInMeleeRange);
 
-		L4D2ZombieClassType iZombieClass = L4D2_GetPlayerZombieClass(iPinnedAttacker);
-		if (iZombieClass != L4D2ZombieClass_Smoker)
-		{
-			if (iWpnSlots[0] && GetWeaponAmmoLeft(iWpnSlots[0]) > 0 && iCurWeapon == iWpnSlots[1] && SurvivorHasMeleeWeapon(iClient) && fFriendDist > g_fCvar_ImprovedMelee_SwitchRange)
+			// --- WEAPON SELECTION ---
+			if (bShouldMeleeSave)
 			{
-				g_bBot_ForceSwitchWeapon[iClient] = true;
-				SwitchWeaponSlot(iClient, 0);
+				if (iCurWeapon != iWpnSlots[1]) {
+					g_bBot_ForceSwitchWeapon[iClient] = true;
+					SwitchWeaponSlot(iClient, 1);
+				}
 			}
-			else if (bCanShoot && fFriendDist <= 262144.0 && iCurWeapon == iWpnSlots[0] && IsWeaponReloading(iCurWeapon) && GetWeaponClip1(iWpnSlots[1]) > 0 && !SurvivorHasShotgun(iClient) && !SurvivorHasSniperRifle(iClient) && !SurvivorHasMeleeWeapon(iClient)) // 512
+			else if (iWpnSlots[0] != 0 && g_iWeapon_AmmoLeft[iWpnSlots[0]] > 0)
 			{
-				g_bBot_ForceSwitchWeapon[iClient] = true;
-				SwitchWeaponSlot(iClient, 1);
+				if (iCurWeapon != iWpnSlots[0] && (g_iCvar_HelpPinnedFriend_Enabled & (1 << 0))) {
+					g_bBot_ForceSwitchWeapon[iClient] = true;
+					SwitchWeaponSlot(iClient, 0);
+				}
 			}
 
-			if (iCanShove != 0 && iZombieClass != L4D2ZombieClass_Charger && !L4D_IsPlayerIncapacitated(iClient))
+			// --- ATTACK EXECUTION ---
+			if (iZombieClass != L4D2ZombieClass_Smoker)
 			{
-				SnapViewToPosition(iClient, (iCanShove == 1 ? g_fClientCenteroid[iPinnedFriend] : g_fClientCenteroid[iPinnedAttacker]));
-				iButtons |= IN_ATTACK2;
-			}
-			else if (bCanShoot && HasVisualContactWithEntity(iClient, iPinnedAttacker, false, fAttackerAimPos))
-			{
-				SnapViewToPosition(iClient, fAttackerAimPos);
-				PressAttackButton(iClient, iButtons); // help pinned
-			}
-		}
-		else
-		{
-			if (iCanShove != 0 && !L4D_IsPlayerIncapacitated(iClient))
-			{
-				SnapViewToPosition(iClient, (iCanShove == 1 ? g_fClientCenteroid[iPinnedFriend] : g_fClientCenteroid[iPinnedAttacker]));
-				iButtons |= IN_ATTACK2;
-			}
-			else if (bCanShoot)
-			{
-				if (HasVisualContactWithEntity(iClient, iPinnedAttacker, false, fAttackerAimPos))
+				if (iCurWeapon == iWpnSlots[1] && fAttackerDist <= g_fCvar_ImprovedMelee_AimRange_Sqr)
 				{
 					SnapViewToPosition(iClient, fAttackerAimPos);
-					PressAttackButton(iClient, iButtons); // help pinned
+					g_iBot_TargetInfected[iClient] = iPinnedAttacker; 
+					if (bIsCharger) iButtons &= ~IN_ATTACK2;
+					
+					g_fBot_MeleeAttackTime[iClient] = fCurTime + 0.5; 
+					g_fBot_PreventFireTime[iClient] = 0.0;
+					iButtons |= IN_ATTACK;
 				}
-				else 
+				else if (!bIsCharger && (g_iCvar_HelpPinnedFriend_Enabled & (1 << 1)) && fFriendDist <= g_fCvar_HelpPinnedFriend_ShoveRange_Sqr)
 				{
-					float fTipPos[3]; GetEntPropVector(L4D_GetPlayerCustomAbility(iPinnedAttacker), Prop_Send, "m_tipPosition", fTipPos);
-					if (!IsValidVector(fTipPos))fTipPos = g_fClientEyePos[iPinnedFriend];	
-
-					if (IsVisibleVector(iClient, fTipPos))
-					{
-						float fMidPos[3];
-						fMidPos[0] = ((g_fClientEyePos[iPinnedAttacker][0] + fTipPos[0]) / 2.0);
-						fMidPos[1] = ((g_fClientEyePos[iPinnedAttacker][1] + fTipPos[1]) / 2.0);
-						fMidPos[2] = ((g_fClientEyePos[iPinnedAttacker][2] + fTipPos[2]) / 2.0);
-
-						SnapViewToPosition(iClient, (IsVisibleVector(iClient, fMidPos) ? fMidPos : fTipPos));
-						PressAttackButton(iClient, iButtons); // help pinned
-					}
+					SnapViewToPosition(iClient, g_fClientCenteroid[iPinnedFriend]);
+					iButtons |= IN_ATTACK2;
+				}
+				// ADDED: g_fCvar_HelpPinnedFriend_ShootRange_Sqr check restored!
+				else if (bAttackerVisible && fFriendDist <= g_fCvar_HelpPinnedFriend_ShootRange_Sqr && SurvivorBot_AbleToShootWeapon(iClient))
+				{
+					SnapViewToPosition(iClient, fAttackerAimPos);
+					PressAttackButton(iClient, iButtons);
+				}
+			}
+			else // Smoker
+			{
+				if ((g_iCvar_HelpPinnedFriend_Enabled & (1 << 1)) && fFriendDist <= g_fCvar_HelpPinnedFriend_ShoveRange_Sqr)
+				{
+					SnapViewToPosition(iClient, g_fClientCenteroid[iPinnedFriend]);
+					iButtons |= IN_ATTACK2;
+				}
+				// ADDED: g_fCvar_HelpPinnedFriend_ShootRange_Sqr check restored!
+				else if (bAttackerVisible && fFriendDist <= g_fCvar_HelpPinnedFriend_ShootRange_Sqr && SurvivorBot_AbleToShootWeapon(iClient))
+				{
+					SnapViewToPosition(iClient, fAttackerAimPos);
+					PressAttackButton(iClient, iButtons);
 				}
 			}
 		}
@@ -2532,13 +2977,12 @@ int SurvivorBotThink(int iClient, int &iButtons, int iWpnSlots[6], int iInvFlags
 	}
 
 	int iTankTarget = g_iBot_TankTarget[iClient];
-	if (IsValidClient(iTankTarget))
+	if (IsValidClient(iTankTarget) && !IsFinaleEscapeVehicleArrived())
 	{
 		int iVictim = g_iInfectedBot_CurrentVictim[iTankTarget];
 		float fTankDist = GetClientDistance(iClient, iTankTarget, true);
 		float fHeightDist = (fTankDist + (g_fClientAbsOrigin[iClient][2] - g_fClientAbsOrigin[iTankTarget][2]));
 		
-		// 1280 & 256
 		if (fHeightDist <= 1638400.0 && (g_bCvar_AvoidTanksWithProp && g_iBot_TankProp[iClient] || g_bCvar_TakeCoverFromRocks && g_bInfectedBot_IsThrowing[iTankTarget]) && (iVictim == iClient || GetClientDistance(iClient, iVictim, true) <= 65536.0) && IsVisibleEntity(iClient, iTankTarget, MASK_SHOT_HULL))
 		{
 			if (strcmp(g_sBot_MovePos_Name[iClient], "TakeCover") != 0)
@@ -2553,24 +2997,85 @@ int SurvivorBotThink(int iClient, int &iButtons, int iWpnSlots[6], int iInvFlags
 			{
 				ClearMoveToPosition(iClient, "TakeCover");	
 			}
-			// 384 & 768
-			if (fTankDist <= 147456.0 || fTankDist <= 589824.0 && bTankVisible)
+			
+			// --- START: SHOTGUN TANK KITING LOGIC ---
+			bool bIsShotgunKiting = false;
+			if (g_bCvar_TankKiting_Shotgun_Enabled && iCurWeapon == iWpnSlots[0] && (iInvFlags & FLAG_SHOTGUN))
 			{
-				L4D2_CommandABot(iClient, iTankTarget, BOT_CMD_RETREAT);
+				bIsShotgunKiting = true;
+				
+				int iMaxClip = GetWeaponClipSize(iCurWeapon);
+				int iClip = g_iWeapon_Clip1[iCurWeapon];
+				int iReserve = g_iWeapon_AmmoLeft[iCurWeapon];
+				
+				if (iClip == 0 && iReserve > 0)
+					g_bBot_ShotgunKiteReloading[iClient] = true;
+				else if (iClip >= iMaxClip || iReserve <= 0)
+					g_bBot_ShotgunKiteReloading[iClient] = false;
+				
+				if (g_bBot_ShotgunKiteReloading[iClient])
+				{
+					g_fBot_PreventFireTime[iClient] = fCurTime + 0.1;
+					iButtons &= ~IN_ATTACK; 
+				}
+				
+				float fTankPos[3]; GetEntityAbsOrigin(iTankTarget, fTankPos);
+				float fBotPos[3]; GetClientAbsOrigin(iClient, fBotPos);
+				float fTankDist2DSqr = ((fTankPos[0] - fBotPos[0]) * (fTankPos[0] - fBotPos[0])) + ((fTankPos[1] - fBotPos[1]) * (fTankPos[1] - fBotPos[1]));
+				
+				if (g_bBot_ShotgunKiteReloading[iClient] || fTankDist2DSqr <= g_fCvar_TankKiting_Shotgun_Retreat)
+				{
+					L4D2_CommandABot(iClient, iTankTarget, BOT_CMD_RETREAT);
+					ClearMoveToPosition(iClient, "ChaseTank");
+				}
+				else if (fTankDist2DSqr >= g_fCvar_TankKiting_Shotgun_Pursue && bTankVisible && strcmp(g_sBot_MovePos_Name[iClient], "TakeCover") != 0)
+				{
+					if (fCurTime >= g_fBot_NextTankPathTime[iClient])
+					{
+						int iTankArea = L4D_GetNearestNavArea(fTankPos);
+						int iBotArea = g_iClientNavArea[iClient];
+						float fHeightDiff = FloatAbs(fTankPos[2] - fBotPos[2]);
+						bool bIsTankInWater = LBI_IsPositionInWater(fTankPos);
+
+						if (!bIsTankInWater && fHeightDiff < 150.0 && iTankArea && iBotArea && LBI_IsReachableNavArea(iClient, iTankArea, iBotArea))
+						{
+							SetMoveToPosition(iClient, fTankPos, 3, "ChaseTank", 0.5, -1.0, true, false);
+							g_fBot_NextTankPathTime[iClient] = fCurTime + 0.5;
+						}
+						else 
+						{
+							ClearMoveToPosition(iClient, "ChaseTank");
+							g_fBot_NextTankPathTime[iClient] = fCurTime + 2.0; 
+						}
+					}
+				}
+				else 
+				{
+					if (LBI_IsPositionInWater(fBotPos)) L4D2_CommandABot(iClient, iTankTarget, BOT_CMD_RETREAT);
+					else ClearMoveToPosition(iClient, "ChaseTank");
+				}
+			}
+			
+			// --- DEFAULT TANK AVOIDANCE ---
+			if (!bIsShotgunKiting)
+			{
+				if (fTankDist <= 147456.0 || fTankDist <= 589824.0 && bTankVisible)
+				{
+					L4D2_CommandABot(iClient, iTankTarget, BOT_CMD_RETREAT);
+				}
 			}
 		}
 
 		int iRock = g_iBot_TankRock[iClient];
 		if (g_bCvar_TankRock_ShootEnabled && g_iCvar_TankRockHealth > 0 && L4D_IsValidEnt(iRock))
 		{
-			static float fRockPos[3];
-			GetEntityCenteroid(iRock, fRockPos);
+			static float fRockPos[3]; GetEntityCenteroid(iRock, fRockPos);
 
 			if (GetVectorDistance(g_fClientEyePos[iClient], fRockPos, true) <= g_fCvar_TankRock_ShootRange_Sqr && SurvivorBot_AbleToShootWeapon(iClient) && 
-				(iCurWeapon != iWpnSlots[1] || !SurvivorHasMeleeWeapon(iClient)) && !IsSurvivorBusy(iClient) && HasVisualContactWithEntity(iClient, iRock, false, fRockPos))
+				(iCurWeapon != iWpnSlots[1] || !(iInvFlags & FLAG_MELEE)) && !IsSurvivorBusy(iClient) && HasVisualContactWithEntity(iClient, iRock, false, fRockPos))
 			{
 				SnapViewToPosition(iClient, fRockPos);
-				PressAttackButton(iClient, iButtons); // shoot tank rock
+				PressAttackButton(iClient, iButtons);
 			}
 		}
 	}
@@ -2617,12 +3122,37 @@ int SurvivorBotThink(int iClient, int &iButtons, int iWpnSlots[6], int iInvFlags
 				}
 				else if (iWitchHarasser != iClient && fWitchDist <= 4000000.0) // 2000
 				{
-					SetMoveToPosition(iClient, fWitchOrigin, 3, "GoToWitch", 0.0, (( bWitchVisible && (iWitchHarasser == -1 || !L4D_IsPlayerIncapacitated(iWitchHarasser)) ) ? (fShootRange > 36864.0 ? 36864.0 : fShootRange) : 0.0), true);
+					if (g_bCvar_WitchBehavior_Chase)
+					{
+						// FIX: Witch Pathfinding Circuit Breaker
+						if (fCurTime >= g_fBot_NextWitchPathTime[iClient])
+						{
+							int iWitchArea = L4D_GetNearestNavArea(fWitchOrigin);
+							int iBotArea = g_iClientNavArea[iClient];
+
+							if (iWitchArea && iBotArea && LBI_IsReachableNavArea(iClient, iWitchArea, iBotArea))
+							{
+								SetMoveToPosition(iClient, fWitchOrigin, 3, "GoToWitch", 0.0, (( bWitchVisible && (iWitchHarasser == -1 || !L4D_IsPlayerIncapacitated(iWitchHarasser)) ) ? (fShootRange > 36864.0 ? 36864.0 : fShootRange) : 0.0), true);
+								g_fBot_NextWitchPathTime[iClient] = fCurTime + 0.5;
+							}
+							else
+							{
+								ClearMoveToPosition(iClient, "GoToWitch");
+								g_fBot_NextWitchPathTime[iClient] = fCurTime + 2.0; // Wait 2s to prevent lag!
+							}
+						}
+					}
+					else 
+					{
+						ClearMoveToPosition(iClient, "GoToWitch");
+					}
 				}
 			}
 
 			if (iWitchHarasser == iClient && fWitchDist <= 1048576.0 && !L4D_IsPlayerIncapacitated(iClient)) // 1024
-				L4D2_CommandABot(iClient, iWitchTarget, BOT_CMD_RETREAT);
+			{
+				if (g_bCvar_WitchBehavior_Chase) L4D2_CommandABot(iClient, iWitchTarget, BOT_CMD_RETREAT);
+			}
 		}
 		else 
 		{
@@ -3144,16 +3674,67 @@ int SurvivorBotThink(int iClient, int &iButtons, int iWpnSlots[6], int iInvFlags
 
 Action OnSurvivorSwitchWeapon(int iClient, int iWeapon) 
 {
-	if (!IsClientSurvivor(iClient) || !IsFakeClient(iClient) || g_bBot_ForceSwitchWeapon[iClient] || !L4D_IsValidEnt(iWeapon) || L4D_IsPlayerIncapacitated(iClient))
+	// 1. HUMAN SAFETY & VALIDITY:
+	// If it's a human, an invalid weapon, or an incapped bot, ignore completely.
+	if (!IsClientSurvivor(iClient) || !IsFakeClient(iClient) || !L4D_IsValidEnt(iWeapon) || L4D_IsPlayerIncapacitated(iClient))
 	{
 		g_bBot_ForceSwitchWeapon[iClient] = false;
 		return Plugin_Continue;
 	}
 
+	// --- START: NEW GATEKEEPER LOGIC (BOTS ONLY) ---
+	if (g_bCvar_PrimaryOnlyOnSI_Enabled)
+	{
+		int iPrimary = GetWeaponInInventory(iClient, 0);
+		int iSecondary = GetWeaponInInventory(iClient, 1);
+
+		if (!IsValidClient(g_iBot_PinnedFriend[iClient]))
+		{
+			// 1. SWOP Override
+			if (GetBotWeaponPreference(iClient) == L4D_WEAPON_PREFERENCE_SECONDARY)
+			{
+				if (iWeapon == iPrimary) { g_bBot_ForceSwitchWeapon[iClient] = false; return Plugin_Handled; }
+			}
+			
+			// 2. Reload Lock
+			if (g_bBot_PrimaryAwaitingReload[iClient])
+			{
+				if (iWeapon != iPrimary) return Plugin_Handled; 
+			}
+
+			// 3. SI PERMISSION LOCK
+			if (g_bBot_PrimaryPermitted[iClient])
+			{
+				// If a threat is near, physically block the native AI from drawing the Magnum
+				if (iWeapon == iSecondary && !g_bBot_ForceSwitchWeapon[iClient]) 
+					return Plugin_Handled;
+			}
+			// 4. SI RESTRICTION
+			else if (iSecondary != 0)
+			{
+				// If it's safe, block any attempt to hold the primary
+				if (iWeapon == iPrimary && !g_bBot_ForceSwitchWeapon[iClient]) 
+				{
+					SwitchWeaponSlot(iClient, 1);
+					return Plugin_Handled;
+				}
+			}
+		}
+	}
+	// --- END: NEW GATEKEEPER LOGIC ---
+
+	// 2. THE FORCE CHECK:
+	// If our script specifically ordered this switch, let it pass instantly.
+	if (g_bBot_ForceSwitchWeapon[iClient])
+	{
+		g_bBot_ForceSwitchWeapon[iClient] = false;
+		return Plugin_Continue;
+	}
+
+	// 3. THE ENGINE CHECKS:
 	int iCurWeapon = L4D_GetPlayerCurrentWeapon(iClient);
 	if (iCurWeapon == -1 || iWeapon == iCurWeapon || GetWeaponClip1(iCurWeapon) < 0)
 	{
-		g_bBot_ForceSwitchWeapon[iClient] = false;
 		return Plugin_Continue;
 	}
 
@@ -3185,12 +3766,15 @@ Action OnSurvivorSwitchWeapon(int iClient, int iWeapon)
 	{
 		if (iCurWeapon == GetWeaponInInventory(iClient, 0) && GetClientPrimaryAmmo(iClient) > 0)
 		{
+			// Chainsaw limit check
 			if (g_iBot_NearbyInfectedCount[iClient] < g_iCvar_ImprovedMelee_SwitchCount2 && g_iClientInvFlags[iClient] & FLAG_CHAINSAW)
 				return Plugin_Handled;
 
-			if (GetBotWeaponPreference(iClient) != L4D_WEAPON_PREFERENCE_SECONDARY && (!(g_iClientInvFlags[iClient] & FLAG_MELEE)
-				|| g_iBot_NearbyInfectedCount[iClient] < g_iCvar_ImprovedMelee_SwitchCount)
-				&& ((g_bCvar_DontSwitchToPistol && g_iClientInvFlags[iClient] & FLAG_SNIPER) || g_iClientInvFlags[iClient] & FLAG_SHOTGUN))
+			// NATIVE SHOTGUN FIX: If our custom SI logic is OFF, we use the author's logic, 
+			// BUT we remove his shotgun restriction so Coach can still use his bat!
+			if (!g_bCvar_PrimaryOnlyOnSI_Enabled && GetBotWeaponPreference(iClient) != L4D_WEAPON_PREFERENCE_SECONDARY && 
+			   (!(g_iClientInvFlags[iClient] & FLAG_MELEE) || g_iBot_NearbyInfectedCount[iClient] < g_iCvar_ImprovedMelee_SwitchCount) && 
+			   ((g_bCvar_DontSwitchToPistol && g_iClientInvFlags[iClient] & FLAG_SNIPER)))
 			{
 				return Plugin_Handled;
 			}
@@ -3202,7 +3786,6 @@ Action OnSurvivorSwitchWeapon(int iClient, int iWeapon)
 		return Plugin_Handled;
 	}
 
-	g_bBot_ForceSwitchWeapon[iClient] = false;
 	return Plugin_Continue;
 }
 
@@ -3761,22 +4344,22 @@ void GetTargetAimPart(int iClient, int iTarget, float fAimPos[3])
 	fAimPos = fAimPartPos;
 }
 
-bool CheckIfCanRescueImmobilizedFriend(int iClient)
-{
-	if (IsSurvivorBotBlindedByVomit(iClient))
-		return false;
-
-	if (!L4D_IsPlayerIncapacitated(iClient)) 
-	{		
-		if (g_iBot_ThreatInfectedCount[iClient] >= GetCommonHitsUntilDown(iClient, 0.33))
-			return false;
-
-		if (IsSurvivorBusy(iClient))
-			return false;
-	}
-
-	return true;
-}
+// bool CheckIfCanRescueImmobilizedFriend(int iClient)
+// {
+// 	if (IsSurvivorBotBlindedByVomit(iClient))
+// 		return false;
+// 
+// 	if (!L4D_IsPlayerIncapacitated(iClient)) 
+// 	{		
+// 		if (g_iBot_ThreatInfectedCount[iClient] >= GetCommonHitsUntilDown(iClient, 0.33))
+// 			return false;
+// 
+// 		if (IsSurvivorBusy(iClient))
+// 			return false;
+// 	}
+// 
+// 	return true;
+// }
 
 void BotLookAtPosition(int iClient, float fLookPos[3], float fLookDuration = 0.33)
 {
@@ -4226,20 +4809,25 @@ bool BotShouldScavengeItem(int iClient, int iItem, int iItemTier, int iScavengeI
 	iSecondarySlot = GetWeaponInInventory(iClient, 1);
 	if (iSecondarySlot)
 	{
+		// FIX: If the bot is holding a melee weapon but is FORBIDDEN from having one...
+		if (SurvivorHasMeleeWeapon(iClient) > 0 && !CanSurvivorMelee(iClient))
+		{
+			// ...then ANY Pistol or Magnum on the ground is an absolute upgrade!
+			if (iItemFlags & (FLAG_PISTOL | FLAG_PISTOL_EXTRA))
+				return true; 
+		}		
+		
+		// FIX: If specific bot is NOT allowed to have melee, they ignore it completely!
+		if (iItemFlags & FLAG_MELEE && !CanSurvivorMelee(iClient)) 
+			return false;
+		
 		// if i have magnum and prefer it to pistol
 		if (g_bCvar_BotWeaponPreference_ForceMagnum && iItemFlags & FLAG_PISTOL && SurvivorHasPistol(iClient) == 3)
-			return false;
+			return false;		
 
 		// if it's melee AND i don't have melee AND team has enough melee OR i have chainsaw AND not too many chainsaw/melee in team
 		if (iItemFlags & FLAG_MELEE && (!(g_iClientInvFlags[iClient] & FLAG_MELEE) && (GetSurvivorTeamInventoryCount(FLAG_MELEE) >= g_iCvar_MaxMeleeSurvivors)
 			|| g_iClientInvFlags[iClient] & FLAG_CHAINSAW && GetSurvivorTeamInventoryCount(FLAG_CHAINSAW) <= g_iCvar_ImprovedMelee_ChainsawLimit))
-			return false;
-
-		// if it's pistols AND i have chainsaw AND it has fuel AND not too many chainsaw in team
-		if (iItemFlags & (FLAG_PISTOL | FLAG_PISTOL_EXTRA) && g_iClientInvFlags[iClient] & FLAG_CHAINSAW
-			&& g_iWeapon_Clip1[iSecondarySlot] > RoundFloat(GetWeaponMaxAmmo(iSecondarySlot) * 0.25)
-			&& GetSurvivorTeamInventoryCount(FLAG_CHAINSAW) <= g_iCvar_ImprovedMelee_ChainsawLimit
-		)
 			return false;
 	}
 
@@ -4736,8 +5324,20 @@ int CheckForItemsToScavenge(int iClient)
 		}
 		else if (iItemBits & PICKUP_SECONDARY)
 		{
-			if ((iMeleeCount + iChainsawCount) < g_iCvar_MaxMeleeSurvivors && (iArrayItem = GetItemFromArray(g_hMeleeList, iClient, _, 19))) // L4D2WeaponId_Melee
-				hItemList.Push(iArrayItem);
+			// FIX: If the bot is holding a forbidden melee weapon, force them to search for a Pistol/Magnum!
+			if (SurvivorHasMeleeWeapon(iClient) > 0 && !CanSurvivorMelee(iClient))
+			{
+				if ((iArrayItem = GetItemFromArray(g_hPistolList, iClient)))
+					hItemList.Push(iArrayItem);
+			}			
+			
+			// FIX: Added CanSurvivorMelee(iClient) to ensure Nick and Bill do not actively search for bats!
+			if ((iMeleeCount + iChainsawCount) < g_iCvar_MaxMeleeSurvivors && CanSurvivorMelee(iClient))
+			{
+				if ((iArrayItem = GetItemFromArray(g_hMeleeList, iClient, _, 19))) // L4D2WeaponId_Melee
+					hItemList.Push(iArrayItem);
+			}
+
 
 			int iHasPistol = SurvivorHasPistol(iClient);
 			if (iHasPistol)
@@ -7372,4 +7972,29 @@ BehaviorAction CreateSurvivorLegsRetreatAction(int iThreat)
 	BehaviorAction hAction = ActionsManager.Allocate(0x745A);
 	SDKCall(g_hSurvivorLegsRetreat, hAction, iThreat);
 	return hAction;
+}
+
+bool LBI_IsPositionInWater(const float fPos[3])
+{
+	Address pNavArea = view_as<Address>(L4D_GetNearestNavArea(fPos));
+	if (pNavArea == Address_Null) return false;
+	int iAttributes = L4D_GetNavArea_SpawnAttributes(pNavArea);
+	return ((iAttributes & NAV_MESH_HYDRO) != 0);
+}
+
+bool CanSurvivorMelee(int iClient)
+{
+	int survivor = GetSurvivorType(iClient);
+	switch(survivor)
+	{
+		case L4D_SURVIVOR_NICK:		return g_bCvar_Melee_Nick;
+		case L4D_SURVIVOR_ROCHELLE:	return g_bCvar_Melee_Rochelle;
+		case L4D_SURVIVOR_COACH:	return g_bCvar_Melee_Coach;
+		case L4D_SURVIVOR_ELLIS:	return g_bCvar_Melee_Ellis;
+		case L4D_SURVIVOR_BILL:		return g_bCvar_Melee_Bill;
+		case L4D_SURVIVOR_ZOEY:		return g_bCvar_Melee_Zoey;
+		case L4D_SURVIVOR_FRANCIS:	return g_bCvar_Melee_Francis;
+		case L4D_SURVIVOR_LOUIS:	return g_bCvar_Melee_Louis;
+	}
+	return true;
 }

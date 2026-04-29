@@ -1,4 +1,4 @@
-# PROJECT IS CURRENTLY (slowly, but surely, sometimes, maybe?) MAINTAINED!!!
+This is a fork. This plugin has been helpful to me for years back in SourceMod days. I added some features, well, mostly vibe-coded. I thought I'd finally put my Github to use. Most of the descriptions are unchanged for now.
 
 ---
 

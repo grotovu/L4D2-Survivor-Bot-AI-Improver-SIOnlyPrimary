@@ -1,4 +1,4 @@
-This is a fork. This plugin has been helpful to me for years back in SourceMod days. I added some features, well, mostly vibe-coded. I thought I'd finally put my Github to use. Most of the descriptions are unchanged for now.
+This is a fork. This plugin has been helpful to me for years back in SourceMod days. I added some features, well, mostly vibe-coded. My brain is rusty. Most of the descriptions are unchanged for now.
 
 ---
 

@@ -1,4 +1,9 @@
-This is a fork. This plugin has been helpful to me for years back in SourceMod days. I added some features, well, mostly vibe-coded. My brain is rusty. Most of the descriptions are unchanged for now.
+This is a fork. The original plugin has been helpful to me for years back in SourceMod days. I added some features, well, mostly vibe-coded. My brain is rusty.
+
+In summary, the primary features added are:
+- Survivor specific cvars for melee use, who can pick up melee and who can't. (Mine has Nick and Bill set to  0, so they'll stick to pistols and magnum)
+- Primary weapons use only when SI are present. You can enable or disable the feature. Unit distance can be configured for both visible and non-visible SI for the snipers, shotguns, rifles and the rest. Useful for saving ammo, and doubly effective if your bot uses melee and magnum.
+- Shotgun bot kiting the tank at close range, can be configured in the cvars. You can enable or disable the feature, and how close and far the tank is before the bot with a shotgun starts retreating and chasing. (Mine is 200 units retreat, 250 units pursue)
 
 ---
 

@@ -2,16 +2,16 @@ This is a fork. The original plugin has been helpful to me for years back in Sou
 
 In summary, the primary features added are:
 - Survivor specific cvars for melee use, who can pick up melee and who can't. (Mine has Nick and Bill set to  0, so they'll stick to pistols and magnum)
-- Primary weapons use only when SI are present. You can enable or disable the feature. Unit distance can be configured for both visible and non-visible SI for the snipers, shotguns, rifles and the rest. Useful for saving ammo, and doubly effective if your bot uses melee and magnum.
+- Primary weapons use only when SI are present. You can enable or disable the feature. Unit distance can be configured for both visible and non-visible SI for the snipers, shotguns, rifles and the rest. Useful for saving ammo, and doubly effective if your bot uses melee or magnum when dealing with commons. Additionally, when not swarmed and no SI is present after a few seconds, the bots will reload their primary before switching to secondary.
 - Shotgun bot kiting the tank at close range, can be configured in the cvars. You can enable or disable the feature, and how close and far the tank is before the bot with a shotgun starts retreating and chasing. (Mine is 200 units retreat, 250 units pursue)
 
-Installation is largely the same. See the original here for how to compile the .sp on your own game:
+Installation is the same. See the original here for the steps:
 https://github.com/Emana202/L4D2-Survivor-Bot-AI-Improver
 
 
-The new cvars:
+# New CVars in this fork:
 ```
-// Toggle which specific survivor can pick up melee. If the number of melee exceeds what's allowed, the others won't pick a melee weapon up
+// Toggle which specific survivor can pick up melee.
 ib_melee_nick "0"
 ib_melee_rochelle "1"
 ib_melee_coach "1"

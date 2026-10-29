@@ -1,6 +1,6 @@
 # [L4D2] Survivor Bot AI Improver - SI-Only Primary Edition
 
-A feature-packed fork of [Emana202's Survivor Bot AI Improver](https://github.com/Emana202/L4D2-Survivor-Bot-AI-Improver) for *Left 4 Dead 2*. 
+A fork of [Emana202's Survivor Bot AI Improver](https://github.com/Emana202/L4D2-Survivor-Bot-AI-Improver) for *Left 4 Dead 2*. 
 
 This fork introduces smart ammo conservation by restricting primary weapons to Special Infected encounters, survivor-specific melee preferences, intelligent shotgun tank-kiting routines, and automated anti-stuck failsafes.
 
@@ -30,6 +30,13 @@ Stock bots with shotguns either retreat into corners or push into Tank punches.
 
 ### 5. 🛠️ Anti-Stuck Failsafe
 * Built-in position monitor: if a bot gets stuck standing still while firing (without being pinned, incapped, climbing, or healing), the system resets their movement path after a 4-second delay to snap them out of the freeze.
+
+---
+
+### Example Clips of Shotgun Tank Kiting and SI-Only Primary Logic:
+* https://www.youtube.com/watch?v=vafZOqpo0sk
+* https://www.youtube.com/watch?v=LWee56g8H4o
+* https://www.youtube.com/watch?v=jD3PqzDt0zw
 
 ---
 
